@@ -1,0 +1,23 @@
+import {chromium} from 'playwright';
+const [,,out,slotIdx='3'] = process.argv;
+const b = await chromium.launch({args:['--no-sandbox','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--in-process-gpu']});
+const p = await b.newPage({viewport:{width:1600,height:900}});
+p.on('pageerror',e=>console.log('pageerror',e.message));
+await p.goto('http://localhost:8811/m416.html',{waitUntil:'load'});
+await p.waitForTimeout(3500);
+await p.keyboard.press('Tab');
+await p.waitForTimeout(400);
+await p.keyboard.press('Digit'+slotIdx);
+await p.waitForTimeout(700);
+await p.screenshot({path:out});
+const m = await p.evaluate(()=>{
+  const dock=document.getElementById('cust').getBoundingClientRect();
+  const ui=document.getElementById('ui').getBoundingClientRect();
+  const snd=document.getElementById('snd').getBoundingClientRect();
+  const over=(a,b)=>Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top))>1 && Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))>1;
+  const tiles=[...document.querySelectorAll('.cslot')].map(e=>{const v=e.querySelector('.v');const sp=e.querySelector('.k span');return {label:sp?sp.textContent:e.querySelector('.k').textContent, val:v?v.textContent:'', clipped:v?v.scrollWidth>v.clientWidth+1:false};});
+  const opts=[...document.querySelectorAll('.copt')].map(e=>({t:e.textContent,bad:e.classList.contains('bad')}));
+  const err=document.getElementById('err'); return {errShown:err.style.display, errText:(err.textContent||'').slice(0,300), dockH:Math.round(dock.height), uiOverDock:over(ui,dock), sndOverDock:over(snd,dock), tiles, opts, clipped:tiles.filter(t=>t.clipped).length};
+});
+console.log(JSON.stringify(m,null,1));
+await b.close();
